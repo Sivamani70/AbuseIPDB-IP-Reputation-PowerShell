@@ -27,8 +27,8 @@ $responseData = New-Object System.Collections.ArrayList
 $basicPatteren = "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
 $content = Get-Content -Path $FilePath
 
-if ($content -eq " " -or $content.Length -eq 0) {
-    Write-Warning "No IPS found in the given file"
+if ($content.Length -eq 0) {
+    Write-Warning "No data found in the given file"
     return
 }
 
@@ -40,6 +40,7 @@ foreach ($ip in $content) {
 }
 
 Write-Output "$($listOfIPs.Count) - IPs found in the file $FilePath"
+if ($listOfIPs.Count -eq 0) { return }
 Write-Output "Checking IPs reputation"
 
 foreach ($ipaddress in $listOfIPs) {
