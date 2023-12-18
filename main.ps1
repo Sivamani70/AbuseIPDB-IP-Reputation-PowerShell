@@ -1,73 +1,127 @@
 [CmdletBinding()]
 param (
-    [Parameter(Mandatory = $true)]
-    [string]
-    $FilePath
+    [Parameter(Mandatory)]
+    [String] $FilePath
 )
 
 #Remove this . .key.ps1 and Replace the {`$KEY} value with your API-Key
 . .\key.ps1
 
-if (!(Test-Path $FilePath)) {
-    Write-Error "$FilePath is not found in the current location"
-    return
-}
-
-# Constant - Values
-$ENDPOINT = "https://api.abuseipdb.com/api/v2/check"
-$HEADERS = @{
-    "key"    = $KEY
-    "Accept" = "application/json"
-}
-# Header for the CSV file
-$CSV_FILE_HEADING = "IPAddress, Whitelisted,ISP, AbuseConfidenceScore, Domain, IsTor, UsageType,  CountryCode"
-
-$listOfIPs = New-Object System.Collections.ArrayList
-$responseData = New-Object System.Collections.ArrayList
-$basicPatteren = "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
-$content = Get-Content -Path $FilePath
-
-if ($content.Length -eq 0) {
-    Write-Warning "No data found in the given file"
-    return
-}
-
-foreach ($ip in $content) {
-    $ip = $ip.Trim()
-    if ([System.Text.RegularExpressions.Regex]::IsMatch($ip, $basicPatteren)) {
-        $listOfIPS.Add($ip) | Out-Null
+class AbuseIPDB {
+    static [String] $ENDPOINT = "https://api.abuseipdb.com/api/v2/check"
+    static [String] $CSV_FILE_HEADING = "IPAddress, Whitelisted,ISP, AbuseConfidenceScore, Domain, IsTor, UsageType,  CountryCode"
+    static [String] $basicPatteren = "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+    static [Hashtable] $HEADERS = @{
+        "key"    = $KEY
+        "Accept" = "application/json"
     }
+    [String] $FilePath
+    [System.Collections.ArrayList] $listOfIPs
+    [System.Collections.ArrayList] $responseData
+    [System.Object[]] $content
+
+    AbuseIPDB([String] $FilePath) {
+        $this.FilePath = $FilePath
+        $this.listOfIPS = New-Object System.Collections.ArrayList<String>
+        $this.responseData = New-Object System.Collections.ArrayList<String>
+    }
+    
+    # Setters
+    [void] setContent([string] $file) { $this.content = Get-Content $file }
+    [void] addResponse([string] $value) { $this.responseData.Add($value) }
+    [void] addIP([string] $ipAddress) { $this.listOfIPs.Add($ipAddress) }
+
+    # Getters
+    [System.Object[]] getContent() { return $this.content }
+    [System.Collections.ArrayList] getResponseData() { return $this.responseData }
+    [System.Collections.ArrayList] getIPs() { return $this.listOfIPs }
+    [String] getFilePath() { return $this.FilePath }
 }
 
-Write-Output "$($listOfIPs.Count) - IPs found in the file $FilePath"
-if ($listOfIPs.Count -eq 0) { return }
-Write-Output "Checking IPs reputation"
+class CheckIPReputation {
 
-foreach ($ipaddress in $listOfIPs) {
-    # URL parameters
-    $queryParameters = @{
-        "ipAddress" = $ipaddress
+    [AbuseIPDB] $abuseipdb
+
+    CheckIPReputation([AbuseIPDB] $obj) {
+        $this.abuseipdb = $obj
     }
-    try {
-        $response = Invoke-WebRequest -Uri $ENDPOINT -Method Get -Headers $HEADERS -Body $queryParameters
-        # Checking the response-status; if it is not 200 it will skip the current test
-        if ($response.StatusCode -ne 200) {
-            Write-Output "Something went wrong;  Status Code: $($response.StatusCode), Status Description: $($response.StatusDescription)"
-            return;
+
+    # Checking the file is valid or not
+    [bool] isFileValid([String] $filePath) {
+        if (!(Test-Path -Path $filePath)) { return $false }
+        $this.abuseipdb.setContent($filePath)
+        if ($this.abuseipdb.getContent().Length -eq 0) {
+            Write-Warning "No data found in the given file"
+            return $false
         }
-        $data = ($response.content | ConvertFrom-Json).data
-        $responseData.Add("$($data.ipAddress), $($data.isWhitelisted), $($data.isp), $($data.abuseConfidenceScore),$($data.domain), $($data.isTor), $($data.usageType), $($data.countryCode)") | Out-Null
-        Write-Output "Completed Checking $($responseData.Count) IP(s)"
+        return $true
     }
-    catch {
-        Write-Output "Some error occured"
-        $PSItem
-    }  
+
+    # Extracting IPs from the input file
+    [void] ExtractIPs($filePath) {
+        Write-Host "Extracting IPS"
+        $content = $this.abuseipdb.getContent()
+        foreach ($ip in $content) {
+            $ip = $ip.Trim()
+            if ([System.Text.RegularExpressions.Regex]::IsMatch($ip, [AbuseIPDB]::basicPatteren)) {
+                $this.abuseipdb.addIP($ip)
+            }
+        }
+    }
+
+    [void] CreateCSVFile([String] $header, [System.Collections.ArrayList] $data) {
+        Write-Host "Creating .\out-put.csv file"
+        Set-Content -Path ".\out-put.csv" -Value $header
+        Add-Content -Path ".\out-put.csv" -Value $data
+        Write-Host "Completed.!" 
+    }
+
+    [void] CheckReputation() {           
+        # Validating File and Abort Execution
+        if (!$this.IsFileValid($this.abuseipdb.getFilePath())) {
+            Write-Error "Given File $($this.abuseipdb.getFilePath()) is Invalid/File Not exist"
+            return
+        }
+
+        # Extracting IPs
+        $this.ExtractIPs($this.abuseipdb.getFilePath())
+        Write-Host "$($this.abuseipdb.getIPs().Count) - IP(s) found in the file $($this.abuseipdb.getFilePath())"
+        
+        if ($this.abuseipdb.getIPs().Count -eq 0) { return }
+        
+        Write-Host "Checking IP reputation..."
+        foreach ($ipAddress in $this.abuseipdb.getIPs()) {
+            
+            [Hashtable] $queryParameters = @{
+                "ipAddress" = $ipAddress
+            }
+                              
+            try {
+                $response = Invoke-WebRequest -Method Get -Uri $([AbuseIPDB]::ENDPOINT) -Headers $([AbuseIPDB]::HEADERS) -Body $queryParameters
+
+                if ($response.StatusCode -ne 200) {
+                    Write-Host "Something went wrong;  Status Code: $($response.StatusCode), Status Description: $($response.StatusDescription)"
+                    return;
+                }
+                $data = ($response.content | ConvertFrom-Json).data
+
+                $this.abuseipdb.addResponse("$($data.ipAddress), $($data.isWhitelisted), $($data.isp), $($data.abuseConfidenceScore),$($data.domain), $($data.isTor), $($data.usageType), $($data.countryCode)")
+            }
+            catch [System.Net.WebException] {
+                Write-Error "Status Code $($_.Exception.Response.StatusCode)"
+            }
+            catch {
+                Write-Error "Something Went worng"
+            }
+            Write-Host "$($this.abuseipdb.getResponseData().Count) - IP(s) checked"
+        }
+        
+        if (($this.abuseipdb.getResponseData().Count) -eq 0) { return }
+        Write-Host "Completed Checking $($this.abuseipdb.getResponseData().Count) - IP(s)"
+        $this.CreateCSVFile([AbuseIPDB]::CSV_FILE_HEADING, $this.abuseipdb.getResponseData())
+    }
 }
 
-# Creating a new out-put.csv file in the current folder with the current response data
-Write-Output "$($responseData.Count)  IP(s) checked" 
-Write-Output "Creating .\out-put.csv file"
-Set-Content -Path ".\out-put.csv" -Value $CSV_FILE_HEADING
-Add-Content -Path ".\out-put.csv" -Value $responseData
-Write-Output "Completed.!"    
+$abuseipdb = [AbuseIPDB]::new($FilePath)
+$checkIPReputation = [CheckIPReputation]::new($abuseipdb)
+$checkIPReputation.CheckReputation()
