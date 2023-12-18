@@ -28,8 +28,8 @@ class AbuseIPDB {
     
     # Setters
     [void] setContent([string] $file) { $this.content = Get-Content $file }
-    [void] addResponse([string] $value) { $this.responseData.Add($value) }
     [void] addIP([string] $ipAddress) { $this.listOfIPs.Add($ipAddress) }
+    [void] addResponse([string] $value) { $this.responseData.Add($value) }
 
     # Getters
     [System.Object[]] getContent() { return $this.content }
@@ -111,7 +111,7 @@ class CheckIPReputation {
                 Write-Error "Status Code $($_.Exception.Response.StatusCode)"
             }
             catch {
-                Write-Error "Something Went worng"
+                Write-Error "Something went wrong"
             }
             Write-Host "$($this.abuseipdb.getResponseData().Count) - IP(s) checked"
         }
