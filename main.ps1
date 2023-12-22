@@ -73,21 +73,20 @@ class CheckIPReputation {
         Write-Host "Creating .\out-put.csv file"
         Set-Content -Path ".\out-put.csv" -Value $header
         Add-Content -Path ".\out-put.csv" -Value $data
-        $result = Read-Host "Would you like to display the resuluts (Y/N)"
+        $result = Read-Host "Would you like to display the resuluts (Y/N): "
         do {
             if ($result.ToLower().chars(0) -eq 'y') {
-                $csvData = Import-Csv ".\out-put.csv"
                 Write-Host "Grid View has opened in a seperate window"
-                Write-Host "Completed.!" 
-                $csvData | Out-GridView 
+                Import-Csv ".\out-put.csv" | Out-GridView 
                 break
             }
             if ($result.ToLower().chars(0) -eq 'n') {
-                Write-Host "Completed.!" 
                 break
             }
             $result = Read-Host "Would you like to display the results (Y/N)"
         } while ($result.ToLower().chars(0) -ne 'y' -or $result.ToLower().chars(0) -ne 'n')
+        Write-Host "Completed.!" 
+
     }
 
     [void] CheckReputation() {           
