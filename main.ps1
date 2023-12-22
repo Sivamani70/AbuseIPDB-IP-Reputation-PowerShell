@@ -4,7 +4,7 @@ param (
     [String] $FilePath
 )
 
-#Remove this . .key.ps1 and Replace the {`$KEY} value with your API-Key
+#Remove this . .key.ps1 and Replace the {`$KEY} value with your API-Key - in line 15
 . .\key.ps1
 
 class AbuseIPDB {
