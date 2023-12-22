@@ -88,7 +88,6 @@ class CheckIPReputation {
             }
             $result = Read-Host "Would you like to display the results (Y/N)"
         } while ($result.ToLower().chars(0) -ne 'y' -or $result.ToLower().chars(0) -ne 'n')
-
     }
 
     [void] CheckReputation() {           
