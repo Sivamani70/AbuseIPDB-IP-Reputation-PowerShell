@@ -73,7 +73,22 @@ class CheckIPReputation {
         Write-Host "Creating .\out-put.csv file"
         Set-Content -Path ".\out-put.csv" -Value $header
         Add-Content -Path ".\out-put.csv" -Value $data
-        Write-Host "Completed.!" 
+        $result = Read-Host "Would you like to display the resuluts (Y/N)"
+        do {
+            if ($result.ToLower().chars(0) -eq 'y') {
+                $csvData = Import-Csv ".\out-put.csv"
+                Write-Host "Grid View has opened in a seperate window"
+                Write-Host "Completed.!" 
+                $csvData | Out-GridView 
+                break
+            }
+            if ($result.ToLower().chars(0) -eq 'n') {
+                Write-Host "Completed.!" 
+                break
+            }
+            $result = Read-Host "Would you like to display the results (Y/N)"
+        } while ($result.ToLower().chars(0) -ne 'y' -or $result.ToLower().chars(0) -ne 'n')
+
     }
 
     [void] CheckReputation() {           
@@ -109,6 +124,7 @@ class CheckIPReputation {
             }
             catch [System.Net.WebException] {
                 Write-Error "Status Code $($_.Exception.Response.StatusCode)"
+                Write-Error $($_.Exception.Response)
             }
             catch {
                 Write-Error "Something went wrong"
