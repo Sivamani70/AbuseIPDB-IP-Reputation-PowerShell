@@ -44,8 +44,7 @@
 3.  Check the current execution policy
     - Type `Get-ExecutionPolicy` and press Enter. This will usually display "`Restricted`" by default.
 4.  Change the execution policy
-    - To allow running scripts downloaded from the internet, type
-    - `Set-ExecutionPolicy RemoteSigned` Press Enter and confirm the change by typing "Y".
+    - To allow running scripts downloaded from the internet, type `Set-ExecutionPolicy RemoteSigned` Press Enter and confirm the change by typing "Y".
 5.  Read more about [ExecutionPolicies](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1)
 
 > _Step2:_
