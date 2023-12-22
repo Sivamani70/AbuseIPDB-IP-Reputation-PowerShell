@@ -54,7 +54,7 @@
 - **_-FilePath_**: takes the path of the file contains the IPs  
    `'.txt' file with each IP seperated by new line`
 
-> Example: `.\main.ps1 -FilePath .\malicious-ips.txt`
+Example: `.\main.ps1 -FilePath .\malicious-ips.txt`
 
 ### Simpler way
 
@@ -65,6 +65,6 @@
 3. By using "Bypass," you're instructing PowerShell to ignore any restrictions and run the script, even if it wouldn't normally be allowed.
 4. The command essentially says, "Run the script named main.ps1, and while you're at it, ignore any execution policy restrictions that might normally prevent it from running."
 
-> Example: `powershell.exe -ExecutionPolicy ByPass -File .\main.ps1 -FilePath .\malicious-ips.txt`
+Example: `powershell.exe -ExecutionPolicy ByPass -File .\main.ps1 -FilePath .\malicious-ips.txt`
 
 <br />
