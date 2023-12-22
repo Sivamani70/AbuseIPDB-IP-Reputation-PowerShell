@@ -83,7 +83,7 @@ class CheckIPReputation {
             if ($result.ToLower().chars(0) -eq 'n') {
                 break
             }
-            $result = Read-Host "Would you like to display the results (Y/N)"
+            $result = Read-Host "Would you like to display the resuluts (Y/N): "
         } while ($result.ToLower().chars(0) -ne 'y' -or $result.ToLower().chars(0) -ne 'n')
         Write-Host "Completed.!" 
 
