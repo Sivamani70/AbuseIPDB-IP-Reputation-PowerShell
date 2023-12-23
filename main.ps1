@@ -10,31 +10,31 @@ param (
 class AbuseIPDB {
     static [String] $ENDPOINT = "https://api.abuseipdb.com/api/v2/check"
     static [String] $CSV_FILE_HEADING = "IPAddress, Whitelisted,ISP, AbuseConfidenceScore, Domain, IsTor, UsageType,  CountryCode"
-    static [String] $basicPatteren = "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+    static [String] $basicPattern = "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
     static [Hashtable] $HEADERS = @{
         "key"    = $KEY
         "Accept" = "application/json"
     }
     [String] $FilePath
-    [System.Collections.ArrayList] $listOfIPs
-    [System.Collections.ArrayList] $responseData
+    [System.Collections.Generic.List[String]] $ipAddresses
+    [System.Collections.Generic.List[String]] $responseContent
     [System.Object[]] $content
 
     AbuseIPDB([String] $FilePath) {
         $this.FilePath = $FilePath
-        $this.listOfIPS = New-Object System.Collections.ArrayList<String>
-        $this.responseData = New-Object System.Collections.ArrayList<String>
+        $this.ipAddresses = New-Object System.Collections.Generic.List[String]
+        $this.responseContent = New-Object System.Collections.Generic.List[String]
     }
     
     # Setters
     [void] setContent([string] $file) { $this.content = Get-Content $file }
-    [void] addIP([string] $ipAddress) { $this.listOfIPs.Add($ipAddress) }
-    [void] addResponse([string] $value) { $this.responseData.Add($value) }
+    [void] addIP([string] $ipAddress) { $this.ipAddresses.Add($ipAddress) }
+    [void] addResponse([string] $value) { $this.responseContent.Add($value) }
 
     # Getters
     [System.Object[]] getContent() { return $this.content }
-    [System.Collections.ArrayList] getResponseData() { return $this.responseData }
-    [System.Collections.ArrayList] getIPs() { return $this.listOfIPs }
+    [System.Collections.Generic.List[String]] getResponseContent() { return $this.responseContent }
+    [System.Collections.Generic.List[String]] getIPs() { return $this.ipAddresses }
     [String] getFilePath() { return $this.FilePath }
 }
 
@@ -63,7 +63,7 @@ class CheckIPReputation {
         $content = $this.abuseipdb.getContent()
         foreach ($ip in $content) {
             $ip = $ip.Trim()
-            if ([System.Text.RegularExpressions.Regex]::IsMatch($ip, [AbuseIPDB]::basicPatteren)) {
+            if ([System.Text.RegularExpressions.Regex]::IsMatch($ip, [AbuseIPDB]::basicPattern)) {
                 $this.abuseipdb.addIP($ip)
             }
         }
@@ -73,18 +73,18 @@ class CheckIPReputation {
         Write-Host "Creating .\out-put.csv file"
         Set-Content -Path ".\out-put.csv" -Value $header
         Add-Content -Path ".\out-put.csv" -Value $data
-        $result = Read-Host "Would you like to display the resuluts (Y/N): "
+        $result = Read-Host "Would you like to display the resuluts (Y/N)"
         do {
-            if ($result.ToLower().chars(0) -eq 'y') {
+            if ($result.ToLower().StartsWith('y')) {
                 Write-Host "Grid View has opened in a seperate window"
                 Import-Csv ".\out-put.csv" | Out-GridView 
                 break
             }
-            if ($result.ToLower().chars(0) -eq 'n') {
+            if ($result.ToLower().StartsWith('n')) {
                 break
             }
-            $result = Read-Host "Would you like to display the resuluts (Y/N): "
-        } while ($result.ToLower().chars(0) -ne 'y' -or $result.ToLower().chars(0) -ne 'n')
+            $result = Read-Host "Would you like to display the resuluts (Y/N)"
+        } while (!$result.ToLower().StartsWith('y') -or !$result.ToLower().StartsWith('n'))
         Write-Host "Completed.!" 
 
     }
@@ -127,12 +127,12 @@ class CheckIPReputation {
             catch {
                 Write-Error "Something went wrong"
             }
-            Write-Host "$($this.abuseipdb.getResponseData().Count) - IP(s) checked"
+            Write-Host "$($this.abuseipdb.getResponseContent().Count) - IP(s) checked"
         }
         
-        if (($this.abuseipdb.getResponseData().Count) -eq 0) { return }
-        Write-Host "Completed Checking $($this.abuseipdb.getResponseData().Count) - IP(s)"
-        $this.CreateCSVFile([AbuseIPDB]::CSV_FILE_HEADING, $this.abuseipdb.getResponseData())
+        if (($this.abuseipdb.getResponseContent().Count) -eq 0) { return }
+        Write-Host "Completed Checking $($this.abuseipdb.getResponseContent().Count) - IP(s)"
+        $this.CreateCSVFile([AbuseIPDB]::CSV_FILE_HEADING, $this.abuseipdb.getResponseContent())
     }
 }
 
