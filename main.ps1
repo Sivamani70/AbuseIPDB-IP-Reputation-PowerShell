@@ -1,41 +1,40 @@
 [CmdletBinding()]
 param (
     [Parameter(Mandatory)]
+    [String] $APIKEY,
+    [Parameter(Mandatory)]
     [String] $FilePath
 )
 
-#Remove this . .key.ps1 and Replace the {`$KEY} value with your API-Key - in line 15
-. .\key.ps1
-
 class AbuseIPDB {
     static [String] $ENDPOINT = "https://api.abuseipdb.com/api/v2/check"
-    static [String] $CSV_FILE_HEADING = "IPAddress, Whitelisted,ISP, AbuseConfidenceScore, Domain, IsTor, UsageType,  CountryCode"
-    static [String] $basicPattern = "\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"
-    static [Hashtable] $HEADERS = @{
-        "key"    = $KEY
-        "Accept" = "application/json"
-    }
+    static [String] $IPV4Validator = "^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+    static [String] $IPV6Validator = "^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$"
+    [Hashtable] $HEADERS = @{}
     [String] $FilePath
     [System.Collections.Generic.List[String]] $ipAddresses
-    [System.Collections.Generic.List[String]] $responseContent
+    [System.Collections.Generic.List[PSCustomObject]] $responseObj
     [System.Object[]] $content
 
-    AbuseIPDB([String] $FilePath) {
+    AbuseIPDB([String] $Key, [String] $FilePath) {
         $this.FilePath = $FilePath
+        $this.HEADERS.Add("Accept", "application/json")
+        $this.HEADERS.Add("key", $Key)
         $this.ipAddresses = New-Object System.Collections.Generic.List[String]
-        $this.responseContent = New-Object System.Collections.Generic.List[String]
+        $this.responseObj = New-Object System.Collections.Generic.List[PSCustomObject]
     }
     
     # Setters
     [void] setContent([string] $file) { $this.content = Get-Content $file }
     [void] addIP([string] $ipAddress) { $this.ipAddresses.Add($ipAddress) }
-    [void] addResponse([string] $value) { $this.responseContent.Add($value) }
+    [void] addResponse([PSCustomObject] $value) { $this.responseObj.Add($value) }
 
     # Getters
     [System.Object[]] getContent() { return $this.content }
-    [System.Collections.Generic.List[String]] getResponseContent() { return $this.responseContent }
+    [System.Collections.Generic.List[PSCustomObject]] getresponseObj() { return $this.responseObj }
     [System.Collections.Generic.List[String]] getIPs() { return $this.ipAddresses }
     [String] getFilePath() { return $this.FilePath }
+    [Hashtable] getHeaders() { return $this.HEADERS }
 }
 
 class CheckIPReputation {
@@ -43,6 +42,7 @@ class CheckIPReputation {
     [AbuseIPDB] $abuseipdb
 
     CheckIPReputation([AbuseIPDB] $obj) {
+        Clear-Host
         $this.abuseipdb = $obj
     }
 
@@ -63,30 +63,16 @@ class CheckIPReputation {
         $content = $this.abuseipdb.getContent()
         foreach ($ip in $content) {
             $ip = $ip.Trim()
-            if ([System.Text.RegularExpressions.Regex]::IsMatch($ip, [AbuseIPDB]::basicPattern)) {
+            if (($ip -match [AbuseIPDB]::IPV4Validator) -or ($ip -match [AbuseIPDB]::IPV6Validator)) {
                 $this.abuseipdb.addIP($ip)
             }
         }
     }
 
-    [void] CreateCSVFile([String] $header, [System.Collections.ArrayList] $data) {
-        Write-Host "Creating .\out-put.csv file"
-        Set-Content -Path ".\out-put.csv" -Value $header
-        Add-Content -Path ".\out-put.csv" -Value $data
-        $result = Read-Host "Would you like to display the resuluts (Y/N)"
-        do {
-            if ($result.ToLower().StartsWith('y')) {
-                Write-Host "Grid View has opened in a seperate window"
-                Import-Csv ".\out-put.csv" | Out-GridView 
-                break
-            }
-            if ($result.ToLower().StartsWith('n')) {
-                break
-            }
-            $result = Read-Host "Would you like to display the resuluts (Y/N)"
-        } while (!$result.ToLower().StartsWith('y') -or !$result.ToLower().StartsWith('n'))
+    [void] createCSVFile([System.Collections.Generic.List[PSCustomObject]] $data) {
+        Write-Host "Creating .\abuseipdb-out-put.csv file"
+        $data | Export-Csv -Path ".\abuseipdb-out-put.csv" -NoTypeInformation
         Write-Host "Completed.!" 
-
     }
 
     [void] CheckReputation() {           
@@ -108,9 +94,9 @@ class CheckIPReputation {
             [Hashtable] $queryParameters = @{
                 "ipAddress" = $ipAddress
             }
-                              
+            
             try {
-                $response = Invoke-WebRequest -Method Get -Uri $([AbuseIPDB]::ENDPOINT) -Headers $([AbuseIPDB]::HEADERS) -Body $queryParameters
+                $response = Invoke-WebRequest -Method Get -Uri $([AbuseIPDB]::ENDPOINT) -Headers $this.abuseipdb.getHeaders() -Body $queryParameters
 
                 if ($response.StatusCode -ne 200) {
                     Write-Host "Something went wrong;  Status Code: $($response.StatusCode), Status Description: $($response.StatusDescription)"
@@ -118,7 +104,18 @@ class CheckIPReputation {
                 }
                 $data = ($response.content | ConvertFrom-Json).data
 
-                $this.abuseipdb.addResponse("$($data.ipAddress), $($data.isWhitelisted), $($data.isp), $($data.abuseConfidenceScore),$($data.domain), $($data.isTor), $($data.usageType), $($data.countryCode)")
+                $obj = [PSCustomObject]@{
+                    IPAddress            = $data.ipAddress
+                    Whitelisted          = $data.isWhitelisted
+                    ISP                  = $data.isp
+                    AbuseConfidenceScore = $data.abuseConfidenceScore
+                    Domain               = $data.domain
+                    IsTor                = $data.isTor
+                    UsageType            = $data.usageType
+                    CountryCode          = $data.countryCode
+                }
+
+                $this.abuseipdb.addResponse($obj)
             }
             catch [System.Net.WebException] {
                 Write-Error "Status Code $($_.Exception.Response.StatusCode)"
@@ -127,15 +124,15 @@ class CheckIPReputation {
             catch {
                 Write-Error "Something went wrong"
             }
-            Write-Host "$($this.abuseipdb.getResponseContent().Count) - IP(s) checked"
+            Write-Host "$($this.abuseipdb.getresponseObj().Count) - IP(s) checked"
         }
         
-        if (($this.abuseipdb.getResponseContent().Count) -eq 0) { return }
-        Write-Host "Completed Checking $($this.abuseipdb.getResponseContent().Count) - IP(s)"
-        $this.CreateCSVFile([AbuseIPDB]::CSV_FILE_HEADING, $this.abuseipdb.getResponseContent())
+        if (($this.abuseipdb.getresponseObj().Count) -eq 0) { return }
+        Write-Host "Completed Checking $($this.abuseipdb.getresponseObj().Count) - IP(s)"
+        $this.createCSVFile($this.abuseipdb.getresponseObj())
     }
 }
 
-$abuseipdb = [AbuseIPDB]::new($FilePath)
+$abuseipdb = [AbuseIPDB]::new($APIKEY, $FilePath)
 $checkIPReputation = [CheckIPReputation]::new($abuseipdb)
 $checkIPReputation.CheckReputation()
