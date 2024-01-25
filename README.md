@@ -1,21 +1,10 @@
 # Bulk IP Reputation with AbuseIPDB - PowerShell Script
 
-### Note: Remove the line `. .\key.ps1` from script `main.ps1`
-
-### Replace `$KEY` with your API Key from AbuseIPDB in `main.ps1`
-
-```powershell
-    static [Hashtable] $HEADERS = @{
-        "key"    = $KEY
-        "Accept" = "application/json"
-    }
-```
-
-## Script Functionality
+### Script Functionality
 
 ### IP Extraction and Validation:
 
-- Parses the given input file to extract IP addresses. Verifies the extracted IP address [As of now only using basic parsing for IPV4 will add support for IPV6].
+- Parses the given input file to extract IP addresses. Verifies the extracted IP address [IPV4 and IPV6].
 
 ### Reputation Assessment:
 
@@ -33,7 +22,7 @@
 ### Data Export:
 
 - Organizes the collected IP addresses and their associated reputation information into a structured format.
-- Generates a CSV file named "out-put.csv" within the same directory as the main.ps1 script to store the results.
+- Generates a CSV file named "abuseipdb-out-put.csv" within the same directory as the main.ps1 script or in the same location from where the script has initiated to store the results.
 
 ## Instructions for running the script
 
@@ -50,21 +39,19 @@
 > _Step2:_
 
 - Run the below command  
-  `.\main.ps1 -FilePath "file_name with the IPs"`
+  `.\main.ps1 -FilePath "file_name with the IPs" -APIKEY "YOUR_APIKEY"`
 - **_-FilePath_**: takes the path of the file contains the IPs  
    `'.txt' file with each IP seperated by new line`
 
-Example: `.\main.ps1 -FilePath .\malicious-ips.txt`
+Example: `.\main.ps1 -FilePath .\malicious-ips.txt -APIKEY "KEY1A2B3C4D"`
 
 ### Simpler way
 
 ---
 
-1. Run command `powershell.exe -ExecutionPolicy ByPass -File .\main.ps1 -FilePath "file_name with the IPs"`
-2. -ExecutionPolicy Bypass: parameter tells PowerShell to temporarily bypass its default execution policy for this specific command.
+1. Run command `powershell.exe -ExecutionPolicy ByPass -File ..\main.ps1 -FilePath "file_name with the IPs" -APIKEY "YOUR_APIKEY"`
+2. **-ExecutionPolicy Bypass**: parameter tells PowerShell to temporarily bypass its default execution policy for this specific command.
 3. By using "Bypass," you're instructing PowerShell to ignore any restrictions and run the script, even if it wouldn't normally be allowed.
 4. The command essentially says, "Run the script named main.ps1, and while you're at it, ignore any execution policy restrictions that might normally prevent it from running."
 
-Example: `powershell.exe -ExecutionPolicy ByPass -File .\main.ps1 -FilePath .\malicious-ips.txt`
-
-<br />
+Example: `powershell.exe -ExecutionPolicy ByPass -File .\main.ps1 -FilePath .\malicious-ips.txt -APIKEY "KEY1A2B3C4D"`
