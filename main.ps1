@@ -61,19 +61,15 @@ class CheckIPReputation {
     [void] ExtractIPs($filePath) {
         Write-Host "Extracting IPS"
         $content = $this.abuseipdb.getContent()
-        foreach ($ip in $content) {
-            $ip = $ip.Trim()
-            if (($ip -match [AbuseIPDB]::IPV4Validator) -or ($ip -match [AbuseIPDB]::IPV6Validator)) {
-                $this.abuseipdb.addIP($ip)
+        foreach ($ioc in $content) {
+            $ioc = $ioc.Trim()
+            if (($ioc -match [AbuseIPDB]::IPV4Validator) -or 
+                ($ioc -match [AbuseIPDB]::IPV6Validator)) {
+                $this.abuseipdb.addIP($ioc)
             }
         }
     }
 
-    [void] createCSVFile([System.Collections.Generic.List[PSCustomObject]] $data) {
-        Write-Host "Creating .\abuseipdb-out-put.csv file"
-        $data | Export-Csv -Path ".\abuseipdb-out-put.csv" -NoTypeInformation
-        Write-Host "Completed.!" 
-    }
 
     [void] CheckReputation() {           
         # Validating File and Abort Execution
@@ -89,10 +85,11 @@ class CheckIPReputation {
         if ($this.abuseipdb.getIPs().Count -eq 0) { return }
         
         Write-Host "Checking IP reputation..."
-        foreach ($ipAddress in $this.abuseipdb.getIPs()) {
-            
+        foreach ($ip in $this.abuseipdb.getIPs()) {
+
             [Hashtable] $queryParameters = @{
-                "ipAddress" = $ipAddress
+                "ipAddress" = $ip
+                "verbose"   = " "
             }
             
             try {
@@ -106,13 +103,15 @@ class CheckIPReputation {
 
                 $obj = [PSCustomObject]@{
                     IPAddress            = $data.ipAddress
-                    Whitelisted          = $data.isWhitelisted
                     ISP                  = $data.isp
+                    TotalReports         = $data.totalReports
                     AbuseConfidenceScore = $data.abuseConfidenceScore
                     Domain               = $data.domain
+                    Whitelisted          = $data.isWhitelisted
                     IsTor                = $data.isTor
                     UsageType            = $data.usageType
                     CountryCode          = $data.countryCode
+                    CountryName          = $data.countryName
                 }
 
                 $this.abuseipdb.addResponse($obj)
@@ -129,8 +128,84 @@ class CheckIPReputation {
         
         if (($this.abuseipdb.getresponseObj().Count) -eq 0) { return }
         Write-Host "Completed Checking $($this.abuseipdb.getresponseObj().Count) - IP(s)"
-        $this.createCSVFile($this.abuseipdb.getresponseObj())
+
+
+        # Checking Excel is installed or not
+        if (!(Test-Path -Path HKLM:\SOFTWARE\Microsoft\Office\*\Excel\)) {
+            Write-Host "Excel Application not found"
+            Write-Host "Creating CSV File"
+            $this.createCSVFile($this.abuseipdb.getresponseObj())        
+        }
+        else {
+            Write-Host "Excel Application found"
+            $this.createXLFile($this.abuseipdb.getresponseObj())
+        }
+
     }
+
+
+    [String] getFileName() {
+        [DateTime] $dateTime = Get-Date
+        [String] $timeStamp = "$($dateTime.DateTime)"
+        return "Abuseipdb-Out-File - $timeStamp"
+    }
+
+    [void] createCSVFile([System.Collections.Generic.List[PSCustomObject]] $data) {
+        [String] $fileName = $this.getFileName()
+        Write-Host "Creating .\$fileName.csv file"
+        $data | Export-Csv -Path ".\$fileName.csv" -NoTypeInformation
+        Write-Host "Completed creating $fileName.csv file"    
+    }
+
+
+    [void] createXLFile([System.Collections.Generic.List[PSCustomObject]] $data) {
+        $excel = New-Object -ComObject Excel.Application
+        [String] $fileName = $this.getFileName()
+        try {
+            $workBook = $excel.Workbooks.Add()
+            $sheet = $workBook.Worksheets.Item(1)
+            $sheet.Name = "IPs Rep"
+        
+            $row = 1
+            $sheet.Cells.Item($row, 1) = "IPAddress"
+            $sheet.Cells.Item($row, 2) = "ISP"
+            $sheet.Cells.Item($row, 3) = "TotalReports"
+            $sheet.Cells.Item($row, 4) = "AbuseConfidenceScore"
+            $sheet.Cells.Item($row, 5) = "Domain"
+            $sheet.Cells.Item($row, 6) = "Whitelisted"
+            $sheet.Cells.Item($row, 7) = "IsTor"
+            $sheet.Cells.Item($row, 8) = "UsageType"
+            $sheet.Cells.Item($row, 9) = "CountryCode"
+            $sheet.Cells.Item($row, 10) = "CountryName"
+
+            $row = 2
+
+            forEach ($obj in $data) {
+                $sheet.Cells.Item($row, 1) = $obj.IPAddress
+                $sheet.Cells.Item($row, 2) = $obj.ISP
+                $sheet.Cells.Item($row, 3) = $obj.TotalReports
+                $sheet.Cells.Item($row, 4) = $obj.AbuseConfidenceScore
+                $sheet.Cells.Item($row, 5) = $obj.Domain
+                $sheet.Cells.Item($row, 6) = $obj.Whitelisted
+                $sheet.Cells.Item($row, 7) = $obj.IsTor
+                $sheet.Cells.Item($row, 8) = $obj.UsageType
+                $sheet.Cells.Item($row, 9) = $obj.CountryCode
+                $sheet.Cells.Item($row, 10) = $obj.CountryName
+                $row++
+            }
+            Write-Host "Creating $fileName.xlsx file"
+            $currentPath = Get-Location
+            $completePath = $currentPath.Path + "\$fileName.xlsx"  
+            $workBook.SaveAs($completePath)
+            $workbook.Close()
+            $excel.Quit()
+            Write-Host "Completed creating $fileName.xlsx file"
+        }
+        finally {
+            [int] $exitCode = [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel)
+            Write-Host "Closed Excel App with status code $exitCode"
+        }
+    }   
 }
 
 $abuseipdb = [AbuseIPDB]::new($APIKEY, $FilePath)
