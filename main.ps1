@@ -145,9 +145,8 @@ class CheckIPReputation {
 
 
     [String] getFileName() {
-        [DateTime] $dateTime = Get-Date
-        [String] $timeStamp = "$($dateTime.DateTime)"
-        return "Abuseipdb-Out-File - $timeStamp"
+        [String] $fileName = Read-Host  -Prompt "Enter File Name Without Extension"
+        return "Abuseipdb-Out-File - $fileName"
     }
 
     [void] createCSVFile([System.Collections.Generic.List[PSCustomObject]] $data) {
